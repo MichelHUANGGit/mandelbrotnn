@@ -69,26 +69,31 @@ def example_train():
     # plt.show()
 
 
-def example_render_model():
+def example_render_model(model_file, image_file):
     # saves a 4k image
     # model = models.Simple().cuda()
     linmap = models.CenteredLinearMap(x_size=torch.pi*2, y_size=torch.pi*2)
-    model = models.Fourier(256, 400, 50, linmap=linmap)
-    model.load_state_dict(torch.load('./models/Jun04_00-34-51_xerxes-u.pt')) # you need to have a model with this name
+    # model = models.Fourier(256, 400, 50, linmap=linmap)
+    model = models.MultFourier(200, 1, linmap)
+    model.load_state_dict(torch.load(f'./models/{model_file}.pt')) # you need to have a model with this name
     model.cuda()
     image = renderModel(model, 7680, 4320, max_gpu=False)
-    plt.imsave('./captures/images/Jun04_00-34-51_xerxes-u.png', image, vmin=0, vmax=1, cmap='inferno')
+    plt.imsave(f'./captures/images/{image_file}.png', image, vmin=0, vmax=1, cmap="hot")
     plt.show()
 
 
-def example_train_capture():
+def example_train_capture(model_name):
     # we will caputre 480x480 video with new frame every 3 epochs
+    # shots = [
+    #     {'frame':5, "xmin":-2.5, "xmax":1, "yoffset":0, "capture_rate":8},
+    #     {'frame':10, "xmin":-1.8, "xmax":-0.9, "yoffset":0.2, "capture_rate":16},
+    # ]
     shots = [
         {'frame':5, "xmin":-2.5, "xmax":1, "yoffset":0, "capture_rate":8},
-        {'frame':10, "xmin":-1.8, "xmax":-0.9, "yoffset":0.2, "capture_rate":16},
+        {'frame':10, "xmin":-2, "xmax":1, "yoffset":0, "capture_rate":16},
     ]
     # shots=None
-    vidmaker = VideoMaker('test', dims=(960, 544), capture_rate=5, shots=shots, max_gpu=True)
+    vidmaker = VideoMaker(model_name, dims=(960, 544), capture_rate=5, shots=shots, max_gpu=True)
     # vidmaker = None
  
     # linmap = models.CenteredLinearMap(x_size=10, y_size=10)
@@ -99,27 +104,33 @@ def example_train_capture():
     # model = models.SkipConn(400, 50, linmap=linmap)
     # model.load_state_dict(torch.load('./models/autosave.pt'))
     # model = models.Simple(300, 30)
-    model = models.Fourier(256, 400, 50, linmap=linmap)
-    # model = models.Fourier2D(12, 400, 50, linmap=linmap)
+    # model = models.Fourier(256, 400, 50, linmap=linmap)
+    # model = models.Fourier2D_test(12, linmap)
     # model = models.Taylor(10, 400, 50, linmap=linmap)
+    # model = models.LinearFourier(100, linmap)
+    model = models.MultFourier(200, 1, linmap)
+    model.load_state_dict(torch.load('./models/PseudoFourier2D.pt'))
+    # vidmaker.frame_count = 1027
     # model.usePreprocessing()
     # dataset = MandelbrotDataSet(1000000, max_depth=500, gpu=True)
-    dataset = MandelbrotDataSet(2000000, max_depth=1500, gpu=True)
-    # dataset = MandelbrotDataSet(loadfile='500k_inv')
+    # dataset = MandelbrotDataSet(1000000, max_depth=1500, gpu=True, xmax=2.5, ymin=-2.5, ymax=1.1)
+    dataset = MandelbrotDataSet(loadfile='1M_50_test')
 
+    # 726 1027
+    print("Model parameters :", sum([params.numel() for params in model.parameters()]))
 
-    train(model, dataset, 1, batch_size=8000, 
-        use_scheduler=True, oversample=0.1,
-        snapshots_every=500, vm=vidmaker)
+    train(model, dataset, 20, batch_size=500, 
+        use_scheduler=True, oversample=0,
+        snapshots_every=500, vm=vidmaker, savemodelas=f'{model_name}.pt')
 
 
 def create_dataset():
-    dataset = MandelbrotDataSet(100000, max_depth=50, gpu=True)
+    dataset = MandelbrotDataSet(1000000, max_depth=50, gpu=True)
     dataset.save('1M_50_test')
 
 if __name__ == "__main__":
     # create_dataset()
     # example_train()
-    example_train_capture()
-    # example_render_model()
+    # example_train_capture("PseudoFourier2D")
+    example_render_model("PseudoFourier2D", "PseudoFourier2D")
     # example_render()
