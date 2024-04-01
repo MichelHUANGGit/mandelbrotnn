@@ -6,7 +6,7 @@ I reproduced his experiments with limited ressources. Basically he uses fourier 
 Training GIF :
 ![gif](videos/PseudoFourier2D.gif)
 
-Final Approximation (8K resolution) :
+Final Approximation (supposedly 8K resolution ?) :
 ![img](captures/images/PseudoFourier2D.png)
 
 My result is not as good as MaxRobinson's.
