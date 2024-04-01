@@ -4,10 +4,10 @@ ORIGINAL IDEA from https://github.com/MaxRobinsonTheGreat/mandelbrotnn.
 I reproduced his experiments with limited ressources. Basically he uses fourier features to approximate the mandelbrot set with a big neural network (~8M parameters). I did it with 600k parameters with a "pseudo-Fourier 2D features", and I'm pretty satisfied with the result.
 
 Training GIF :
-![gif](videos\PseudoFourier2D.gif)
+![gif](videos/PseudoFourier2D.gif)
 
 Final Approximation (8K resolution) :
-![img](captures\images\PseudoFourier2D.png)
+![img](captures/images/PseudoFourier2D.png)
 
 # Requirements
 - python3
