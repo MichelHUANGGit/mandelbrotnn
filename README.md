@@ -9,6 +9,8 @@ Training GIF :
 Final Approximation (8K resolution) :
 ![img](captures/images/PseudoFourier2D.png)
 
+My result is not as good as MaxRobinson's.
+
 # Requirements
 - python3
 - pip3
