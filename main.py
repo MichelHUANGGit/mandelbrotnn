@@ -116,7 +116,6 @@ def example_train_capture(model_name):
     # dataset = MandelbrotDataSet(1000000, max_depth=1500, gpu=True, xmax=2.5, ymin=-2.5, ymax=1.1)
     dataset = MandelbrotDataSet(loadfile='1M_50_test')
 
-    # 726 1027
     print("Model parameters :", sum([params.numel() for params in model.parameters()]))
 
     train(model, dataset, 20, batch_size=500, 

@@ -264,25 +264,3 @@ class TestFourier(nn.Module):
 		concat = torch.concatenate([first_order, second_order])
 		return self.activation(concat)
 	
-
-class Fourier2D_test(nn.Module):
-	def __init__(self, fourier_order=4, linmap=None):
-		super().__init__()
-		self.fourier_order = fourier_order
-		self.linear = nn.Linear((4*fourier_order**2 + 2),1)
-		self._linmap = linmap
-		self.activation = nn.Sigmoid()
-		self.orders = torch.arange(1, fourier_order+1).float().to('cuda')
-
-	def forward(self,x):
-		if self._linmap:
-			x = self._linmap.map(x)
-		features = [x]
-		for n in self.orders:
-			for m in self.orders:
-				features.append((torch.cos(n*x[:,0])*torch.cos(m*x[:,1])).unsqueeze(-1))
-				features.append((torch.cos(n*x[:,0])*torch.sin(m*x[:,1])).unsqueeze(-1))
-				features.append((torch.sin(n*x[:,0])*torch.cos(m*x[:,1])).unsqueeze(-1))
-				features.append((torch.sin(n*x[:,0])*torch.sin(m*x[:,1])).unsqueeze(-1))
-		fourier_features = torch.cat(features, 1)
-		return self.activation(self.linear(fourier_features))
