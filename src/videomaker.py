@@ -159,4 +159,4 @@ class VideoMaker:
         self.frame_count += 1
 
     def generateVideo(self):
-        os.system(f'ffmpeg -y -r {self.fps} -i ./frames/{self.name}/%05d.png -c:v libx264 -preset veryslow -crf 0 -pix_fmt yuv420p ./frames/{self.name}/{self.name}.mp4')
+        os.system(f'ffmpeg -y -r {self.fps} -i ./frames/{self.name}/%05d.png -c:v libx264 -preset veryslow -crf 0 -pix_fmt yuv420p ./videos/{self.name}.mp4')

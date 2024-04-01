@@ -40,13 +40,14 @@ def train(model, dataset, epochs, batch_size=1000, use_scheduler=False, oversamp
     logger.createDir('models')
 
     model = model.cuda()
-    optim = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5)
+    optim = torch.optim.Adam(model.parameters(), lr=0.000005, weight_decay=1e-5, betas=[0.7,0.8])
     if use_scheduler:
         scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=5, gamma=0.5)
         # I have experimented with other supposedly better schedulers before, they don't work as well
         # try this one if you'd like:
         # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optim, T_0=20)
     # bne = torch.nn.BCELoss()
+    loss_fn = torch.nn.MSELoss()
     
     if oversample != 0:
         per_batch = math.floor(batch_size * oversample)
@@ -75,9 +76,10 @@ def train(model, dataset, epochs, batch_size=1000, use_scheduler=False, oversamp
             
             # all_losses = (outputs - pred)**2
             # all_losses = torch.sqrt(torch.abs(pred - outputs))
-            all_losses = torch.abs(outputs - pred)
-            # all_losses = loss_fn(pred, outputs)
+            # all_losses = torch.abs(outputs - pred)
+            loss = loss_fn(pred, outputs)
 
+            # oversample miss-classified samples
             if oversample != 0:
                 size = per_batch if per_batch < len(all_losses) else len(all_losses)
                 highest_loss = torch.topk(all_losses, size)
@@ -86,7 +88,7 @@ def train(model, dataset, epochs, batch_size=1000, use_scheduler=False, oversamp
 
             # loss = bne(pred.float(), outputs.float())
             # loss = torch.mean(torch.abs(pred - outputs))
-            loss = torch.mean(all_losses)
+            # loss = torch.mean(all_losses)
             # loss = torch.mean(2 * (1-(1/(torch.abs(outputs - pred)+1))))
             # loss = torch.mean(torch.sqrt(torch.abs(outputs**2 - pred**2)))
             loss.backward()
@@ -97,14 +99,14 @@ def train(model, dataset, epochs, batch_size=1000, use_scheduler=False, oversamp
             loop.set_description('epoch:{:d} Loss:{:.6f}'.format(epoch, tot_loss/(i+1)))
             loop.update(1)
             tb.add_scalar('Loss/train', loss.detach().item(), tot_iterations)
-            tb.add_scalar('Learning Rate', scheduler.get_last_lr()[0], tot_iterations)
+            # tb.add_scalar('Learning Rate', scheduler.get_last_lr()[0], tot_iterations)
             tot_iterations+=1
             inputs, outputs = inputs.cpu(), outputs.cpu()
             torch.cuda.empty_cache()
             # scheduler.step()
 
             if snapshots_every != -1 and tot_iterations%snapshots_every == 0:
-                tb.add_image('sample', renderModel(model, 960, 544, max_gpu=True).data, tot_iterations)
+                tb.add_image('sample', renderModel(model, 960, 544, max_gpu=False).data, tot_iterations)
                 if eval_dataset is not None:
                     tb.add_scalar('Loss/eval', evaluate(model, eval_dataset, batch_size), tot_iterations)
         loop.close()
@@ -116,8 +118,9 @@ def train(model, dataset, epochs, batch_size=1000, use_scheduler=False, oversamp
         
         if savemodelas is not None:
             torch.save(model.state_dict(), './models/'+savemodelas)
+
     print("Finished training.")
-    print("Final learning rate:", scheduler.get_last_lr()[0])
+    # print("Final learning rate:", scheduler.get_last_lr()[0])
     if eval_dataset is not None:
         tb.add_scalar('Loss/eval', evaluate(model, eval_dataset, batch_size), tot_iterations)
 

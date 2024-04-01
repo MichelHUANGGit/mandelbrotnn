@@ -160,3 +160,129 @@ class Taylor(nn.Module):
 		taylor = torch.cat(series, 1)
 		return self.inner_model(taylor)
 
+class LinearFourier(nn.Module):
+
+	def __init__(self, fourier_order, linmap, *args, **kwargs) -> None:
+		super().__init__(*args, **kwargs)
+		self.fourier_order = fourier_order
+		self.orders = torch.arange(1, fourier_order + 1).float().to('cuda')
+		self.linear = nn.Linear(in_features=(fourier_order*4 + 2), out_features=1)
+		self.activation = nn.Sigmoid()
+		self._linmap = linmap
+
+	def forward(self, x):
+		if self._linmap:
+			self._linmap.map(x)
+		x = x.unsqueeze(-1)  # add an extra dimension for broadcasting
+		fourier_features = torch.cat([torch.sin(self.orders * x), torch.cos(self.orders * x), x], dim=-1)
+		fourier_features = fourier_features.view(x.shape[0], -1)  # flatten the last two dimensions
+		return self.activation(self.linear(fourier_features))
+	
+
+class MultFourier(nn.Module):
+
+	def __init__(self, fourier_order, n_hidden_layers, linmap, *args, **kwargs) -> None:
+		super().__init__(*args, **kwargs)
+		self.fourier_order = fourier_order
+		self.orders = torch.arange(1, fourier_order + 1).float().to('cuda')
+		# hidden layers
+		self.n_hidden_layers = n_hidden_layers
+		hidden_layers = []
+		for _ in range(n_hidden_layers):
+			hidden_layers.append(nn.Linear(in_features=(fourier_order*4 + 2), out_features=(fourier_order*4 + 2)))
+		self.hidden = nn.Sequential(*hidden_layers)
+		# last layer
+		self.linear = nn.Linear(in_features=(fourier_order*4 + 2), out_features=1)
+		self.activation = nn.Sigmoid()
+		self._linmap = linmap
+
+	def forward(self, x):
+		if self._linmap:
+			self._linmap.map(x)
+		x = x.unsqueeze(-1)  # add an extra dimension for broadcasting
+		fourier_features = torch.cat([torch.sin(self.orders * x), torch.cos(self.orders * x), x], dim=-1)
+		fourier_features = fourier_features.view(x.shape[0], -1)  # flatten the last two dimensions
+
+		# multiply connections to produce pseudo-2D Fourier Series (also add residual)
+		y = self.hidden(fourier_features)
+		y = torch.multiply(y, fourier_features)#.add(fourier_features)
+
+		return self.activation(self.linear(y))
+	
+	# def forward(self, x):
+	# 	if self._linmap:
+	# 		self._linmap.map(x)
+	# 	x = x.unsqueeze(-1)  # add an extra dimension for broadcasting
+	# 	fourier_features = torch.cat([torch.sin(self.orders * x), torch.cos(self.orders * x), x], dim=-1)
+	# 	fourier_features = fourier_features.view(x.shape[0], -1)  # flatten the last two dimensions
+	# 	y = fourier_features.clone()
+	# 	# multiply connections to produce pseudo-2D Fourier Series (also add residual)
+	# 	for _ in range(self.n_hidden_layers):
+	# 		y = self.hidden(y)
+	# 		y = torch.multiply(y, fourier_features)#.add(fourier_features)
+
+	# 	return self.activation(self.linear(y))
+	
+
+class TestFourier(nn.Module):
+
+	def __init__(self, fourier_order, n_hidden_layers, linmap, *args, **kwargs) -> None:
+		super().__init__(*args, **kwargs)
+		self.fourier_order = fourier_order
+		self.orders = torch.arange(1, fourier_order + 1).float().to('cuda')
+		# hidden layers
+		self.n_hidden_layers = n_hidden_layers
+		# hidden_layers = []
+		# for _ in range(n_hidden_layers):
+		# 	hidden_layers.append(nn.Linear(in_features=(fourier_order*4 + 2), out_features=(fourier_order*4 + 2)))
+		# self.hidden = nn.Sequential(*hidden_layers)
+		# # last layer
+		self.first_order_layer = nn.Linear(in_features=(fourier_order*4 + 2), out_features=1)
+		self.second_order_layer = nn.Linear((fourier_order*4 + 2), (fourier_order*4 + 2))
+		self.activation = nn.Sigmoid()
+		self._linmap = linmap
+	
+	def forward(self, x):
+		if self._linmap:
+			self._linmap.map(x)
+		x = x.unsqueeze(-1)  # add an extra dimension for broadcasting
+		fourier_features = torch.cat([torch.sin(self.orders * x), torch.cos(self.orders * x), x], dim=-1)
+		fourier_features = fourier_features.view(x.shape[0], -1)  # flatten the last two dimensions, shape : (batch, 4n+2)
+
+		# First order
+		# -----------
+		# O1 = a1 cos(x) + + b1 sin(x) + b2 sin(2x) + a2 cos(2x) + ... + ... + bn sin(nx) + an cos(nx)
+		# output shape : (batch, 4n+2) @ (4n+2, 1) = (batch, 1)
+		first_order = self.first_order_layer(fourier_features)
+
+		# Second order
+		# ------------
+		# O2 = c1 cos(x) sin(x) + c2 cos(2x) sin(x) + c3 cos(x) sin(2x) + c4 cos(2x) sin(2x)
+		# output shape : (batch, 4n+2) @ (4n+2, 4n+2) * (batch, 4n+2) = 
+		second_order = torch.multiply(self.second_order_layer(fourier_features), fourier_features)
+
+		concat = torch.concatenate([first_order, second_order])
+		return self.activation(concat)
+	
+
+class Fourier2D_test(nn.Module):
+	def __init__(self, fourier_order=4, linmap=None):
+		super().__init__()
+		self.fourier_order = fourier_order
+		self.linear = nn.Linear((4*fourier_order**2 + 2),1)
+		self._linmap = linmap
+		self.activation = nn.Sigmoid()
+		self.orders = torch.arange(1, fourier_order+1).float().to('cuda')
+
+	def forward(self,x):
+		if self._linmap:
+			x = self._linmap.map(x)
+		features = [x]
+		for n in self.orders:
+			for m in self.orders:
+				features.append((torch.cos(n*x[:,0])*torch.cos(m*x[:,1])).unsqueeze(-1))
+				features.append((torch.cos(n*x[:,0])*torch.sin(m*x[:,1])).unsqueeze(-1))
+				features.append((torch.sin(n*x[:,0])*torch.cos(m*x[:,1])).unsqueeze(-1))
+				features.append((torch.sin(n*x[:,0])*torch.sin(m*x[:,1])).unsqueeze(-1))
+		fourier_features = torch.cat(features, 1)
+		return self.activation(self.linear(fourier_features))
