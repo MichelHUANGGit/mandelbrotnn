@@ -40,7 +40,7 @@ def train(model, dataset, epochs, batch_size=1000, use_scheduler=False, oversamp
     logger.createDir('models')
 
     model = model.cuda()
-    optim = torch.optim.Adam(model.parameters(), lr=0.000005, weight_decay=1e-5, betas=[0.7,0.8])
+    optim = torch.optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-5, betas=[0.7,0.8])
     if use_scheduler:
         scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=5, gamma=0.5)
         # I have experimented with other supposedly better schedulers before, they don't work as well
